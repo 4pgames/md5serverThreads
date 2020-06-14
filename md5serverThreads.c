@@ -9,8 +9,15 @@
 //Handle multiple socket connections with select and fd_set on Linux 
 
 // https://www.geeksforgeeks.org/socket-programming-in-cc-handling-multiple-clients-on-server-without-multi-threading/
+// // https://stackoverflow.com/questions/7627723/how-to-create-a-md5-hash-of-a-string-in-c
 
-// gcc noThreadServer.c 
+// gcc noThreadServer.c -lcrypto -lssl
+//sudo dnf install openssl-devel
+// libssl-dev on ubuntu?
+
+// For testing:
+// nc -v 127.0.0.1 8888
+//man netcat
 
 #include <stdio.h> 
 #include <string.h> //strlen 
@@ -22,13 +29,56 @@
 #include <sys/socket.h> 
 #include <netinet/in.h> 
 #include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros 
+
+#if defined(__APPLE__)
+#  define COMMON_DIGEST_FOR_OPENSSL
+#  include <CommonCrypto/CommonDigest.h>
+#  define SHA1 CC_SHA1
+#else
+#  include <openssl/md5.h>
+#endif
 	
 #define TRUE 1 
 #define FALSE 0 
 #define PORT 8888 
+
+char* s2 = "verify-1-HelloWorld";
+
+char *str2md5(const char *str, int length) {
+    int n;
+    MD5_CTX c;
+    unsigned char digest[16];
+    char *out = (char*)malloc(33);
+
+    MD5_Init(&c);
+
+    while (length > 0) {
+        if (length > 512) {
+            MD5_Update(&c, str, 512);
+        } else {
+            MD5_Update(&c, str, length);
+        }
+        length -= 512;
+        str += 512;
+    }
+
+    MD5_Final(digest, &c);
+
+    for (n = 0; n < 16; ++n) {
+        snprintf(&(out[n*2]), 16*2, "%02x", (unsigned int)digest[n]);
+    }
+
+    return out;
+}
 	
 int main(int argc , char *argv[]) 
 { 
+
+char* s3 = "verify-1-HelloWorld";
+void *ptr = str2md5(s3,strlen(s3));
+printf("%s\n", ptr);
+
+
 	int opt = TRUE; 
 	int master_socket , addrlen , new_socket , client_socket[30] , 
 		max_clients = 30 , activity, i , valread , sd; 
