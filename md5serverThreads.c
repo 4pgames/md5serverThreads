@@ -70,13 +70,21 @@ char *str2md5(const char *str, int length) {
 
     return out;
 }
+
+// A normal C function that is executed as a thread  
+// when its name is specified in pthread_create() 
+void *MD5send(void *vargp) { 
+    void *ptr = str2md5(vargp,strlen(vargp));
+    printf("%s\n", ptr);
+    free(ptr);
+    printf("Finished hashing from Thread \n"); 
+    return NULL; 
+} 
 	
 int main(int argc , char *argv[]) 
 { 
 
-char* s3 = "verify-1-HelloWorld";
-void *ptr = str2md5(s3,strlen(s3));
-printf("%s\n", ptr);
+MD5send(s2);
 
 
 	int opt = TRUE; 
