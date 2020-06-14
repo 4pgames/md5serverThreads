@@ -11,7 +11,7 @@
 // https://www.geeksforgeeks.org/socket-programming-in-cc-handling-multiple-clients-on-server-without-multi-threading/
 // // https://stackoverflow.com/questions/7627723/how-to-create-a-md5-hash-of-a-string-in-c
 
-// gcc noThreadServer.c -lcrypto -lssl
+// gcc noThreadServer.c -lcrypto -lssl -pthread
 //sudo dnf install openssl-devel
 // libssl-dev on ubuntu?
 
@@ -29,6 +29,7 @@
 #include <sys/socket.h> 
 #include <netinet/in.h> 
 #include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros 
+#include <pthread.h> 
 
 #if defined(__APPLE__)
 #  define COMMON_DIGEST_FOR_OPENSSL
@@ -84,9 +85,16 @@ void *MD5send(void *vargp) {
 int main(int argc , char *argv[]) 
 { 
 
-MD5send(s2);
-
-
+// https://stackoverflow.com/questions/22427007/difference-between-pthread-exit-pthread-join-and-pthread-detach
+// pthread_join blocks until the thread finishes
+    pthread_t thread_id; 
+    printf("Before Thread\n"); 
+ 
+    pthread_create(&thread_id, NULL, MD5send, (void *) s2); 
+//  https://stackoverflow.com/questions/13315575/c-pthread-join-return-value
+    pthread_join(thread_id, NULL); 
+    printf("After Thread\n"); 
+    
 	int opt = TRUE; 
 	int master_socket , addrlen , new_socket , client_socket[30] , 
 		max_clients = 30 , activity, i , valread , sd; 
