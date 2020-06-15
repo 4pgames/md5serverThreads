@@ -90,22 +90,76 @@ void cleanupSEMs() {
     }
 }
 
+
+void preFillBuffer(){
+   for (int i =1; i<10; i++){
+      sprintf (buf [i], "verify-1-HelloWorld %d\n", i);
+      // Tell spooler that there is a string to print/hash: V (spool_signal_sem);
+      // Increments the count on the semaphore
+      if (sem_post (spool_signal_sem) == -1) {
+	  perror ("sem_post: spool_signal_sem"); exit (1);
+       }
+    }
+}
+
+// The producer thread
+// not implemented yet because of the issue of finding the correct value of i for referencing buf[i]
+// Really needs a queue or stack instead of a buffer/array
+
+/*
+void *fakeSocket (void *arg) {
+
+     while (1) {  // forever
+          /* There might be multiple producers. We must ensure that 
+          only one producer uses buffer_index at a time.  */   /*	
+     // P (mutex_sem);
+     if (sem_wait (mutex_sem) == -1) {
+	 perror ("sem_wait: mutex_sem"); exit (1);
+     }
+
+         sprintf (buf [i], "verify-1-HelloWorld %d\n", 300);
+         
+        // Release mutex sem: V (mutex_sem)
+        if (sem_post (mutex_sem) == -1) {
+	    perror ("sem_post: mutex_sem"); exit (1);
+        }
+             sleep(1);
+     }
+}  */
+
+// The consumer thread
 void *spooler (void *arg)
 {
     int printCtr = 0;
     printf("%s", "Entering spooler thread\n");
     
     while (1) {  // forever
-        // Is there a string to print? P (spool_signal_sem);
+        // Is there a string to print/hash? P (spool_signal_sem);
+        // Sleeps if the count is zero
+        // Decrements the count when the block is released.
         if (sem_wait (spool_signal_sem) == -1) {
 	    perror ("sem_wait: spool_signal_sem"); exit (1);
         }
+        /* There might be multiple threads accessing buffer. We must ensure that 
+          only one producer uses buffer_index at a time.  */   	
+        // P (mutex_sem); Not a real mutax.
+        if (sem_wait (mutex_sem) == -1) {
+	    perror ("sem_wait: mutex_sem"); exit (1);
+        }
         printf("%s", buf[printCtr]);
         printCtr++;
+        // Release mutex sem: V (mutex_sem)
+        if (sem_post (mutex_sem) == -1) {
+	    perror ("sem_post: mutex_sem"); exit (1);
+        }
     } 
-     printf("%s", "Exiting spooler thread\n");
+     printf("%s", "Exiting spooler thread\n"); // Never gets here.
 }
 
+
+// Only necessary for testing purposes: replace with a ctr-C handler?
+// Shutdown the named POSIX semaphores, otherwise the existing values carry over the next time the program is run
+// OSX needs named POSIX semaphores; OSX does not have unamed semaphores
 void *timeOut (void *arg)
 {
     int printCtr = 0;
@@ -129,15 +183,7 @@ int main (int argc, char **argv)
     buffer_index = buffer_print_index = 0;
     
     setupSEMs();  // create the semaphores
-
-   for (int i =1; i<10; i++){
-      sprintf (buf [i], "verify-1-HelloWorld %d\n", i);
-      // Tell spooler that there is a string to print: V (spool_signal_sem);
-      if (sem_post (spool_signal_sem) == -1) {
-	  perror ("sem_post: spool_signal_sem"); exit (1);
-       }
-    }
-
+    preFillBuffer(); // create strings for the spooler to print/hash
    
     // Create timeout
     if ((r = pthread_create (&tid_timeout, NULL, timeOut, NULL)) != 0) {
@@ -149,7 +195,6 @@ int main (int argc, char **argv)
         fprintf (stderr, "Error = %d (%s)\n", r, strerror (r)); exit (1);
     }
     
-    //sleep(3);
     while(1){
     
     }
