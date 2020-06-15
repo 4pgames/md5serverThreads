@@ -90,26 +90,68 @@ void cleanupSEMs() {
     }
 }
 
+void *spooler (void *arg)
+{
+    int printCtr = 0;
+    printf("%s", "Entering spooler thread\n");
+    
+    while (1) {  // forever
+        // Is there a string to print? P (spool_signal_sem);
+        if (sem_wait (spool_signal_sem) == -1) {
+	    perror ("sem_wait: spool_signal_sem"); exit (1);
+        }
+        printf("%s", buf[printCtr]);
+        printCtr++;
+    } 
+     printf("%s", "Exiting spooler thread\n");
+}
+
+void *timeOut (void *arg)
+{
+    int printCtr = 0;
+    printf("%s", "Started countdown timer\n");
+
+    for (int t; t <10; t++){
+            sleep(1);
+    }
+    printf("%s", "Closing semaphores\n");
+    cleanupSEMs();
+    printf("%s", "Exited countdown timer\n");
+    exit (0);
+}
 
 int main (int argc, char **argv)
 {
-    pthread_t tid_producer [10], tid_spooler;
+    pthread_t tid_producer [10], tid_spooler, tid_timeout;
     int i, r;
 
     // initialization
     buffer_index = buffer_print_index = 0;
     
-     for (int i =1; i<253; i++){
-     // printf("%s", synthBlock(i));
-     sprintf (buf [i], "verify-1-HelloWorld %d\n", i);
-     printf("%s", "\n");
-     }
+    setupSEMs();  // create the semaphores
 
-    setupSEMs();
+   for (int i =1; i<10; i++){
+      sprintf (buf [i], "verify-1-HelloWorld %d\n", i);
+      // Tell spooler that there is a string to print: V (spool_signal_sem);
+      if (sem_post (spool_signal_sem) == -1) {
+	  perror ("sem_post: spool_signal_sem"); exit (1);
+       }
+    }
 
-    cleanupSEMs();
-
-
-    exit (0);
+   
+    // Create timeout
+    if ((r = pthread_create (&tid_timeout, NULL, timeOut, NULL)) != 0) {
+        fprintf (stderr, "Error = %d (%s)\n", r, strerror (r)); exit (1);
+    }
+    
+    // Create spooler
+    if ((r = pthread_create (&tid_spooler, NULL, spooler, NULL)) != 0) {
+        fprintf (stderr, "Error = %d (%s)\n", r, strerror (r)); exit (1);
+    }
+    
+    //sleep(3);
+    while(1){
+    
+    }
 }
 
